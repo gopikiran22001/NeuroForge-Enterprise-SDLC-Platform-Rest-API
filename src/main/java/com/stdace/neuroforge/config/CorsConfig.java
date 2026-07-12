@@ -1,5 +1,6 @@
 package com.stdace.neuroforge.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -11,16 +12,14 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
+    @Value("${webapp.origin}")
+    private String webappOrigin;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow frontend origins
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost:3000",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:3000"
-        ));
+        // Allow frontend origin from environment variable (WEBAPP_ORIGIN)
+        configuration.setAllowedOrigins(List.of(webappOrigin));
         // Allow HTTP methods
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         // Allow headers
