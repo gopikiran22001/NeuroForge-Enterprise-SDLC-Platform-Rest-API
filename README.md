@@ -85,6 +85,7 @@ Copy `.env.example` to `.env` and fill in values. **Never commit `.env`.**
 | `JWT_SECRET` | JWT signing secret (min 32 chars) | `a-strong-random-secret` |
 | `JWT_ACCESS_TOKEN_EXPIRATION_SECONDS` | Access token TTL | `900` (15 min) |
 | `JWT_REFRESH_TOKEN_EXPIRATION_SECONDS` | Refresh token TTL | `604800` (7 days) |
+| `JWT_COOKIE_SECURE` | Require HTTPS for cookies | `false` (dev) / `true` (prod) |
 
 ---
 
