@@ -34,6 +34,8 @@ public class UserMapper {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .organizationId(user.getOrganization() != null ? user.getOrganization().getId() : null)
+                .organizationName(user.getOrganization() != null ? user.getOrganization().getName() : null)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

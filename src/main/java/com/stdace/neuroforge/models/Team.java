@@ -38,6 +38,13 @@ public class Team extends BaseModel {
     @JoinColumn(name = "team_leader_id", nullable = false)
     private User teamLeader;
 
+    /**
+     * Organization that owns this team.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "team_members",

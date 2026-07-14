@@ -2,6 +2,8 @@ package com.stdace.neuroforge.service.team;
 
 import com.stdace.neuroforge.dto.milestone.MilestoneResponse;
 import com.stdace.neuroforge.enums.TeamStatus;
+import com.stdace.neuroforge.enums.UserRole;
+import com.stdace.neuroforge.models.Organization;
 import com.stdace.neuroforge.models.Team;
 import com.stdace.neuroforge.models.User;
 import com.stdace.neuroforge.common.PageResponse;
@@ -10,8 +12,10 @@ import com.stdace.neuroforge.dto.team.TeamResponse;
 import com.stdace.neuroforge.exception.DuplicateResourceException;
 import com.stdace.neuroforge.exception.ResourceNotFoundException;
 import com.stdace.neuroforge.mapper.TeamMapper;
+import com.stdace.neuroforge.repository.OrganizationRepository;
 import com.stdace.neuroforge.repository.TeamRepository;
 import com.stdace.neuroforge.repository.UserRepository;
+import com.stdace.neuroforge.security.CurrentUserUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +34,7 @@ public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final OrganizationRepository organizationRepository;
     private final TeamMapper teamMapper;
 
     @Override
@@ -47,6 +52,11 @@ public class TeamServiceImpl implements TeamService {
                 .collect(Collectors.toSet());
 
         Team team = teamMapper.toEntity(request, teamLeader, members);
+        // Auto-assign organization from the current user's org context
+        UUID orgId = CurrentUserUtil.getCurrentUserOrganizationId();
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + orgId));
+        team.setOrganization(org);
         teamRepository.save(team);
         return teamMapper.toResponse(team);
     }
@@ -64,10 +74,19 @@ public class TeamServiceImpl implements TeamService {
     public PageResponse<TeamResponse> search(String search, TeamStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
 
-        if(status != null) {
-            return PageResponse.from(teamRepository.findByStatus(status, pageable).map(teamMapper::toResponse));
+        // ORG_ADMIN: scope to their organization
+        if (CurrentUserUtil.getCurrentUserRole() == UserRole.ORG_ADMIN) {
+            UUID orgId = CurrentUserUtil.getCurrentUserOrganizationId();
+            if (status != null) {
+                return PageResponse.from(teamRepository.findByOrganizationIdAndStatus(orgId, status, pageable).map(teamMapper::toResponse));
+            }
+            return PageResponse.from(teamRepository.findByOrganizationId(orgId, pageable).map(teamMapper::toResponse));
         }
 
+        // SUPER_ADMIN: platform-wide
+        if (status != null) {
+            return PageResponse.from(teamRepository.findByStatus(status, pageable).map(teamMapper::toResponse));
+        }
         return PageResponse.from(teamRepository.findAll(pageable).map(teamMapper::toResponse));
     }
 

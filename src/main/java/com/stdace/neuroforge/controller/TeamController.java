@@ -24,7 +24,7 @@ public class TeamController {
     private final TeamService teamService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<TeamResponse>> create(@Valid @RequestBody TeamRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Team created successfully", teamService.create(request)));
     }
@@ -45,13 +45,13 @@ public class TeamController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<TeamResponse>> update(@PathVariable UUID id, @Valid @RequestBody TeamRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Team updated successfully", teamService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         teamService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Team deleted successfully", null));

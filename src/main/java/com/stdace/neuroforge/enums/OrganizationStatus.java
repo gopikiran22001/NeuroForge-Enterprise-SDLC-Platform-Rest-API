@@ -1,8 +1,8 @@
 package com.stdace.neuroforge.enums;
 
-public enum UserStatus {
+public enum OrganizationStatus {
     ACTIVE,
-    INACTIVE,
+    SUSPENDED,
     PENDING_APPROVAL,
-    DELETED
+    DELETED,
 }

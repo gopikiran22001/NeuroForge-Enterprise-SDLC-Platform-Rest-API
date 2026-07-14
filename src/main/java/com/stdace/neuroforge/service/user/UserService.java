@@ -19,4 +19,8 @@ public interface UserService {
     UserResponse update(UUID id, UserRequest request);
 
     void delete(UUID id);
+
+    UserResponse approve(UUID id);
+
+    PageResponse<UserResponse> getPending(int page, int size);
 }

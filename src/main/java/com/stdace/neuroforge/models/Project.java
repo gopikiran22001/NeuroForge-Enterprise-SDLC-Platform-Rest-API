@@ -48,6 +48,13 @@ public class Project extends BaseModel {
     private Instant endDate;
 
     /**
+     * Organization that owns this project.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
+    /**
      * Project Manager
      */
     @ManyToOne(fetch = FetchType.LAZY)

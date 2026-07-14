@@ -1,6 +1,7 @@
 package com.stdace.neuroforge.security;
 
 import com.stdace.neuroforge.enums.UserRole;
+import com.stdace.neuroforge.exception.ForbiddenException;
 import com.stdace.neuroforge.exception.UnauthorizedException;
 import lombok.experimental.UtilityClass;
 import org.springframework.security.core.Authentication;
@@ -50,4 +51,24 @@ public class CurrentUserUtil {
         throw new UnauthorizedException("Unable to resolve current user");
     }
 
-}
+    /**
+     * Returns the organization UUID for the current user.
+     * Throws {@link ForbiddenException} if the user is a SUPER_ADMIN (they have no org).
+     */
+    public static UUID getCurrentUserOrganizationId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new UnauthorizedException("Not authenticated");
+        }
+        Object principal = auth.getPrincipal();
+        if (principal instanceof com.stdace.neuroforge.security.CustomUserDetails cud) {
+            var org = cud.getUser().getOrganization();
+            if (org == null) {
+                throw new ForbiddenException("SUPER_ADMIN does not belong to any organization");
+            }
+            return org.getId();
+        }
+        throw new UnauthorizedException("Unable to resolve current user organization");
+    }
+
+}

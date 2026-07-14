@@ -25,7 +25,7 @@ public class MilestoneController {
     private final MilestoneService milestoneService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<MilestoneResponse>> create(@Valid @RequestBody MilestoneRequest request) {
         if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.PROJECT_MANAGER)){
             milestoneService.managerCheck(CurrentUserUtil.getCurrentUserId(), request);
@@ -35,7 +35,8 @@ public class MilestoneController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MilestoneResponse>> getById(@PathVariable UUID id) {
-        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                && !CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             return ResponseEntity.ok(ApiResponse.success("Milestone retrieved successfully", milestoneService.getById(CurrentUserUtil.getCurrentUserId(),id)));
         }
         return ResponseEntity.ok(ApiResponse.success("Milestone retrieved successfully", milestoneService.getById(id)));
@@ -49,7 +50,8 @@ public class MilestoneController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                && !CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             UUID userId = CurrentUserUtil.getCurrentUserId();
             if (projectId != null) {
                 return ResponseEntity.ok(ApiResponse.success("Milestones retrieved successfully", milestoneService.search(userId, search, projectId, status, page, size)));
@@ -64,7 +66,8 @@ public class MilestoneController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<MilestoneResponse>> update(@PathVariable UUID id, @Valid @RequestBody MilestoneRequest request) {
-        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN) &&
+        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN) &&
+            !CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN) &&
             !milestoneService.isAllowed(id, CurrentUserUtil.getCurrentUserId())) {
             throw new ForbiddenException("You are not allowed to perform this action");
         }
@@ -72,7 +75,7 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.PROJECT_MANAGER)) {
             milestoneService.managerCheck(CurrentUserUtil.getCurrentUserId(), id);

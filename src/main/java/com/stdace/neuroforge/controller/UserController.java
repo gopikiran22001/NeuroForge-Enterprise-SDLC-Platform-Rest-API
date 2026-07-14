@@ -32,13 +32,13 @@ public class UserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> create(@Valid @RequestBody UserRequest request) {
         return ResponseEntity.ok(ApiResponse.success("User created successfully", userService.create(request)));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<?>> search(
             @RequestParam(required = false) UUID id,
             @RequestParam(required = false) String search,
@@ -55,7 +55,8 @@ public class UserController {
 
     @PutMapping
     public ResponseEntity<ApiResponse<UserResponse>> update(@RequestParam(required = false) UUID id, @Valid @RequestBody UserRequest request) {
-        if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                || CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             if(id == null)
                 throw new ResourceNotFoundException("User not found: " + id);
         } else {
@@ -66,7 +67,8 @@ public class UserController {
 
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> delete(@RequestParam(required = false) UUID id) {
-        if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                || CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             if(id == null)
                 throw new ResourceNotFoundException("User not found: " + id);
         } else {
@@ -74,6 +76,21 @@ public class UserController {
         }
         userService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
+    }
+
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<UserResponse>> approve(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("User approved successfully", userService.approve(id)));
+    }
+
+    @GetMapping("/pending")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getPending(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Pending users retrieved successfully", userService.getPending(page, size)));
     }
 }
 

@@ -1,6 +1,12 @@
 package com.stdace.neuroforge.service.auth;
 
+import com.stdace.neuroforge.enums.OrganizationStatus;
+import com.stdace.neuroforge.enums.OrganizationType;
+import com.stdace.neuroforge.enums.UserRole;
 import com.stdace.neuroforge.enums.UserStatus;
+import com.stdace.neuroforge.exception.DuplicateResourceException;
+import com.stdace.neuroforge.exception.ResourceNotFoundException;
+import com.stdace.neuroforge.models.Organization;
 import com.stdace.neuroforge.models.RefreshToken;
 import com.stdace.neuroforge.models.User;
 import com.stdace.neuroforge.dto.auth.AuthResponse;
@@ -34,6 +40,7 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final com.stdace.neuroforge.repository.OrganizationRepository organizationRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -46,8 +53,60 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
             throw new BusinessException("Email already exists");
         }
+        if (request.getRole() == UserRole.SUPER_ADMIN) {
+            throw new BusinessException("You are not allowed to register as SUPER_ADMIN");
+        }
+
         User user = userMapper.toEntity(request, passwordEncoder);
-        userRepository.save(user);
+
+        if (request.getRole() == UserRole.ORG_ADMIN) {
+            // Validate organization details
+            if (request.getOrgName() == null || request.getOrgName().isBlank()) {
+                throw new BusinessException("Organization name is required for ORG_ADMIN registration");
+            }
+            if (request.getOrgSlug() == null || request.getOrgSlug().isBlank()) {
+                throw new BusinessException("Organization slug is required for ORG_ADMIN registration");
+            }
+            if (organizationRepository.existsByNameIgnoreCase(request.getOrgName())) {
+                throw new DuplicateResourceException("Organization name already exists: " + request.getOrgName());
+            }
+            if (organizationRepository.existsBySlugIgnoreCase(request.getOrgSlug())) {
+                throw new DuplicateResourceException("Organization slug already taken: " + request.getOrgSlug());
+            }
+
+            // Create pending organization
+            Organization org = new com.stdace.neuroforge.models.Organization();
+            org.setName(request.getOrgName());
+            org.setSlug(request.getOrgSlug().toLowerCase());
+            org.setType(request.getOrgType() != null ? request.getOrgType() : OrganizationType.STARTUP);
+            org.setDescription(request.getOrgDescription());
+
+            // Save organization first to generate ID
+            org = organizationRepository.save(org);
+
+            // Set user status to pending and link organization
+            user.setOrganization(org);
+            user = userRepository.save(user);
+
+            // Link owner back to organization
+            org.setOwner(user);
+            organizationRepository.save(org);
+        } else {
+            // Normal user registering below ORG_ADMIN
+            if (request.getOrganizationId() == null) {
+                throw new BusinessException("Organization selection is required");
+            }
+            com.stdace.neuroforge.models.Organization org = organizationRepository.findById(request.getOrganizationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Selected organization not found"));
+
+            if (org.getStatus() != OrganizationStatus.ACTIVE) {
+                throw new BusinessException("Selected organization is not active");
+            }
+
+            user.setOrganization(org);
+            user = userRepository.save(user);
+        }
+
         return buildAuthResponse(user);
     }
 
@@ -61,6 +120,10 @@ public class AuthServiceImpl implements AuthService {
                 ? customUserDetails.getUser()
                 : userRepository.findByEmailIgnoreCase(((UserDetails) principal).getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+
+        if (user.getStatus() == UserStatus.PENDING_APPROVAL) {
+            throw new UnauthorizedException("Your account is pending approval by an administrator.");
+        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new UnauthorizedException("User account is not active");
         }
@@ -107,6 +170,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
+        if (user.getStatus() == UserStatus.PENDING_APPROVAL) {
+            return AuthResponse.builder()
+                    .user(userMapper.toResponse(user))
+                    .build();
+        }
         return AuthResponse.builder()
                 .accessToken(jwtService.generateAccessToken(user))
                 .refreshToken(jwtService.generateRefreshToken(user))

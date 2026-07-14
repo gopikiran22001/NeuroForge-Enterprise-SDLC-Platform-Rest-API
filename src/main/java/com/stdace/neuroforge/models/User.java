@@ -46,9 +46,17 @@ public class User extends BaseModel {
     @Column(nullable = false)
     private UserStatus status;
 
+    /**
+     * The organization this user belongs to.
+     * SUPER_ADMIN has no organization (null).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
+
     @Override
     protected void onCreate() {
-        status = UserStatus.ACTIVE;
+        status = UserStatus.PENDING_APPROVAL;
     }
 
     //    @Builder.Default

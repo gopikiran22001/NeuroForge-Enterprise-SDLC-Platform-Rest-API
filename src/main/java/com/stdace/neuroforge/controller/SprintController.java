@@ -24,7 +24,7 @@ public class SprintController {
     private final SprintService sprintService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<SprintResponse>> create(@Valid @RequestBody SprintRequest request) {
         if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.PROJECT_MANAGER)){
             sprintService.managerCheck(CurrentUserUtil.getCurrentUserId(), request);
@@ -34,7 +34,8 @@ public class SprintController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SprintResponse>> getById(@PathVariable UUID id) {
-        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                && !CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             return ResponseEntity.ok(ApiResponse.success("Sprint retrieved successfully", sprintService.getById(CurrentUserUtil.getCurrentUserId(), id)));
         }
         return ResponseEntity.ok(ApiResponse.success("Sprint retrieved successfully", sprintService.getById(id)));
@@ -48,7 +49,8 @@ public class SprintController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.ADMIN)) {
+        if(!CurrentUserUtil.getCurrentUserRole().equals(UserRole.SUPER_ADMIN)
+                && !CurrentUserUtil.getCurrentUserRole().equals(UserRole.ORG_ADMIN)) {
             UUID userId = CurrentUserUtil.getCurrentUserId();
             if(projectId != null){
                 return ResponseEntity.ok(ApiResponse.success("Sprints retrieved successfully", sprintService.search(userId, search, projectId, status, page, size)));
@@ -63,7 +65,7 @@ public class SprintController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<SprintResponse>> update(@PathVariable UUID id, @Valid @RequestBody SprintRequest request) {
         if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.PROJECT_MANAGER)){
             sprintService.managerCheck(CurrentUserUtil.getCurrentUserId(), id);
@@ -72,7 +74,7 @@ public class SprintController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','PROJECT_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         if(CurrentUserUtil.getCurrentUserRole().equals(UserRole.PROJECT_MANAGER)){
             sprintService.managerCheck(CurrentUserUtil.getCurrentUserId(), id);

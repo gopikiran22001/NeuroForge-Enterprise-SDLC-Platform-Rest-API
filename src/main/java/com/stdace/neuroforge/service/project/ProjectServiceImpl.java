@@ -2,8 +2,10 @@ package com.stdace.neuroforge.service.project;
 
 import com.stdace.neuroforge.enums.ProjectStatus;
 import com.stdace.neuroforge.enums.TeamStatus;
+import com.stdace.neuroforge.enums.UserRole;
 import com.stdace.neuroforge.enums.UserStatus;
 import com.stdace.neuroforge.exception.ForbiddenException;
+import com.stdace.neuroforge.models.Organization;
 import com.stdace.neuroforge.models.Project;
 import com.stdace.neuroforge.models.Team;
 import com.stdace.neuroforge.models.User;
@@ -14,9 +16,11 @@ import com.stdace.neuroforge.exception.BusinessException;
 import com.stdace.neuroforge.exception.DuplicateResourceException;
 import com.stdace.neuroforge.exception.ResourceNotFoundException;
 import com.stdace.neuroforge.mapper.ProjectMapper;
+import com.stdace.neuroforge.repository.OrganizationRepository;
 import com.stdace.neuroforge.repository.ProjectRepository;
 import com.stdace.neuroforge.repository.TeamRepository;
 import com.stdace.neuroforge.repository.UserRepository;
+import com.stdace.neuroforge.security.CurrentUserUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +41,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
+    private final OrganizationRepository organizationRepository;
     private final ProjectMapper projectMapper;
 
     @Override
@@ -46,6 +51,11 @@ public class ProjectServiceImpl implements ProjectService {
         Set<Team> teams = getActiveTeams(request.getTeamIds());
         validateDateRange(request.getStartDate(), request.getEndDate());
         Project project = projectMapper.toEntity(request, manager, teams);
+        // Auto-assign organization from the current user's org context
+        UUID orgId = CurrentUserUtil.getCurrentUserOrganizationId();
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + orgId));
+        project.setOrganization(org);
         return projectMapper.toResponse(projectRepository.save(project));
     }
 
@@ -74,8 +84,17 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional(readOnly = true)
     public PageResponse<ProjectResponse> search(String search, ProjectStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<ProjectResponse> mapped = null;
-        if(status != null) {
+        // ORG_ADMIN: scope to their organization
+        if (CurrentUserUtil.getCurrentUserRole() == UserRole.ORG_ADMIN) {
+            UUID orgId = CurrentUserUtil.getCurrentUserOrganizationId();
+            if (status != null) {
+                return PageResponse.from(projectRepository.findByOrganizationIdAndStatus(orgId, status, pageable).map(projectMapper::toResponse));
+            }
+            return PageResponse.from(projectRepository.findByOrganizationId(orgId, pageable).map(projectMapper::toResponse));
+        }
+        // SUPER_ADMIN: platform-wide
+        Page<ProjectResponse> mapped;
+        if (status != null) {
             mapped = projectRepository.findByStatus(status, pageable).map(projectMapper::toResponse);
         } else {
             mapped = projectRepository.findAll(pageable).map(projectMapper::toResponse);

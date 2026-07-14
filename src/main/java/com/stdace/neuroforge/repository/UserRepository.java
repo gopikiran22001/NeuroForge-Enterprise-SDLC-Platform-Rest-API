@@ -23,5 +23,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> findByRole(UserRole role, Pageable pageable);
 
     Page<User> findByRoleAndStatus(UserRole role, UserStatus status, Pageable pageable);
+
+    // --- Org-scoped queries (for ORG_ADMIN) ---
+
+    Page<User> findByOrganizationId(UUID organizationId, Pageable pageable);
+
+    Page<User> findByOrganizationIdAndRole(UUID organizationId, UserRole role, Pageable pageable);
+
+    Page<User> findByOrganizationIdAndStatus(UUID organizationId, UserStatus status, Pageable pageable);
+
+    Page<User> findByOrganizationIdAndRoleAndStatus(UUID organizationId, UserRole role, UserStatus status, Pageable pageable);
 }
 

@@ -19,6 +19,12 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     Page<Project> findByStatus(ProjectStatus status, Pageable pageable);
 
+    // --- Org-scoped queries (for ORG_ADMIN) ---
+
+    Page<Project> findByOrganizationId(UUID organizationId, Pageable pageable);
+
+    Page<Project> findByOrganizationIdAndStatus(UUID organizationId, ProjectStatus status, Pageable pageable);
+
     @Query("""
     SELECT DISTINCT p
     FROM Project p

@@ -1,5 +1,6 @@
 package com.stdace.neuroforge.dto.auth;
 
+import com.stdace.neuroforge.enums.OrganizationType;
 import com.stdace.neuroforge.enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -9,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.UUID;
 
 @Data
 @Builder
@@ -32,4 +35,13 @@ public class RegisterRequest {
 
     @NotNull
     private UserRole role;
+
+    // For normal users joining an existing organization
+    private UUID organizationId;
+
+    // For ORG_ADMIN registering and creating a new organization
+    private String orgName;
+    private String orgSlug;
+    private OrganizationType orgType;
+    private String orgDescription;
 }

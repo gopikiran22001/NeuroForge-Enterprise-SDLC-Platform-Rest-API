@@ -22,6 +22,8 @@ public class UserResponse {
     private String email;
     private UserRole role;
     private UserStatus status;
+    private UUID organizationId;
+    private String organizationName;
     private Instant createdAt;
     private Instant updatedAt;
 }

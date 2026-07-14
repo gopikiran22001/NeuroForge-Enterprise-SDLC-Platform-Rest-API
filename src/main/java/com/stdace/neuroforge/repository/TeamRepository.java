@@ -19,6 +19,12 @@ public interface TeamRepository extends JpaRepository<Team, UUID> {
 
     Page<Team> findByStatus(TeamStatus status, Pageable pageable);
 
+    // --- Org-scoped queries (for ORG_ADMIN) ---
+
+    Page<Team> findByOrganizationId(UUID organizationId, Pageable pageable);
+
+    Page<Team> findByOrganizationIdAndStatus(UUID organizationId, TeamStatus status, Pageable pageable);
+
     @Query("""
     SELECT DISTINCT t
     FROM Team t
