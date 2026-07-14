@@ -25,4 +25,6 @@ public interface OrganizationService {
     OrganizationResponse approve(UUID id);
 
     java.util.List<OrganizationResponse> getActiveOrganizations();
+
+    java.util.Map<String, Long> getStats();
 }

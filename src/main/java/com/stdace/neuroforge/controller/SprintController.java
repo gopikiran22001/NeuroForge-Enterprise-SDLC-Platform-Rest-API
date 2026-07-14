@@ -41,6 +41,11 @@ public class SprintController {
         return ResponseEntity.ok(ApiResponse.success("Sprint retrieved successfully", sprintService.getById(id)));
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats(@RequestParam(required = false) UUID projectId) {
+        return ResponseEntity.ok(ApiResponse.success("Sprint stats retrieved successfully", sprintService.getStats(projectId)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SprintResponse>>> search(
             @RequestParam(required = false) UUID projectId,

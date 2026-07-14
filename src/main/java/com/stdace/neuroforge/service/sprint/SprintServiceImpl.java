@@ -14,6 +14,9 @@ import com.stdace.neuroforge.exception.ResourceNotFoundException;
 import com.stdace.neuroforge.mapper.SprintMapper;
 import com.stdace.neuroforge.repository.ProjectRepository;
 import com.stdace.neuroforge.repository.SprintRepository;
+import com.stdace.neuroforge.security.CurrentUserUtil;
+import com.stdace.neuroforge.service.audit.AuditLogService;
+import com.stdace.neuroforge.enums.AuditSeverity;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +36,7 @@ public class SprintServiceImpl implements SprintService {
     private final SprintRepository sprintRepository;
     private final ProjectRepository projectRepository;
     private final SprintMapper sprintMapper;
+    private final AuditLogService auditLogService;
 
 
     @Override
@@ -58,7 +62,12 @@ public class SprintServiceImpl implements SprintService {
         validateSprintDatesWithinProject(request.getStartDate(), request.getEndDate(), project);
         ensureSingleActiveSprint(project, null, request.getStatus());
         Sprint sprint = sprintMapper.toEntity(request, project);
-        return sprintMapper.toResponse(sprintRepository.save(sprint));
+        Sprint saved = sprintRepository.save(sprint);
+        
+        auditLogService.log("Sprint Created", "Sprint", saved.getId(), AuditSeverity.INFO, 
+                "Created sprint: " + saved.getName() + " for project ID: " + project.getId());
+        
+        return sprintMapper.toResponse(saved);
     }
 
     @Override
@@ -138,19 +147,37 @@ public class SprintServiceImpl implements SprintService {
     public SprintResponse update(UUID id, SprintRequest request) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + id));
+        
+        if (sprint.getStatus() == SprintStatus.COMPLETED) {
+            throw new BusinessException("Completed sprints cannot be modified");
+        }
+        
         Project project = getActiveProject(request.getProjectId());
         validateSprintDatesWithinProject(request.getStartDate(), request.getEndDate(), project);
         ensureSingleActiveSprint(project, id, request.getStatus());
         sprintMapper.updateEntity(sprint, request, project);
-        return sprintMapper.toResponse(sprintRepository.save(sprint));
+        Sprint saved = sprintRepository.save(sprint);
+        
+        auditLogService.log("Sprint Updated", "Sprint", saved.getId(), AuditSeverity.INFO, 
+                "Updated sprint: " + saved.getName() + " (Status: " + saved.getStatus() + ")");
+        
+        return sprintMapper.toResponse(saved);
     }
 
     @Override
     public void delete(UUID id) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + id));
+        
+        if (sprint.getStatus() == SprintStatus.COMPLETED) {
+            throw new BusinessException("Completed sprints cannot be deleted");
+        }
+        
         sprint.setStatus(SprintStatus.CANCELLED);
         sprintRepository.save(sprint);
+        
+        auditLogService.log("Sprint Cancelled/Deleted", "Sprint", sprint.getId(), AuditSeverity.WARNING, 
+                "Sprint status set to CANCELLED for: " + sprint.getName());
     }
 
     private Project getActiveProject(UUID projectId) {
@@ -184,5 +211,39 @@ public class SprintServiceImpl implements SprintService {
                     .filter(sprint -> !sprint.getId().equals(currentSprintId))
                     .ifPresent(sprint -> { throw new BusinessException("Only one ACTIVE sprint is allowed per project"); });
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getStats(UUID projectId) {
+        java.util.Map<String, Long> stats = new java.util.HashMap<>();
+        com.stdace.neuroforge.enums.UserRole callerRole = CurrentUserUtil.getCurrentUserRole();
+        if (callerRole == com.stdace.neuroforge.enums.UserRole.SUPER_ADMIN || callerRole == com.stdace.neuroforge.enums.UserRole.ORG_ADMIN) {
+            if (projectId != null) {
+                stats.put("total", sprintRepository.countByProjectId(projectId));
+                stats.put("active", sprintRepository.countByProjectIdAndStatus(projectId, SprintStatus.ACTIVE));
+                stats.put("planned", sprintRepository.countByProjectIdAndStatus(projectId, SprintStatus.PLANNED));
+                stats.put("completed", sprintRepository.countByProjectIdAndStatus(projectId, SprintStatus.COMPLETED));
+            } else {
+                stats.put("total", sprintRepository.count());
+                stats.put("active", sprintRepository.countByStatus(SprintStatus.ACTIVE));
+                stats.put("planned", sprintRepository.countByStatus(SprintStatus.PLANNED));
+                stats.put("completed", sprintRepository.countByStatus(SprintStatus.COMPLETED));
+            }
+        } else {
+            UUID userId = CurrentUserUtil.getCurrentUserId();
+            if (projectId != null) {
+                stats.put("total", sprintRepository.countByProjectId(userId, projectId));
+                stats.put("active", sprintRepository.countByProjectIdAndStatus(userId, projectId, SprintStatus.ACTIVE));
+                stats.put("planned", sprintRepository.countByProjectIdAndStatus(userId, projectId, SprintStatus.PLANNED));
+                stats.put("completed", sprintRepository.countByProjectIdAndStatus(userId, projectId, SprintStatus.COMPLETED));
+            } else {
+                stats.put("total", sprintRepository.countByUserId(userId));
+                stats.put("active", sprintRepository.countByUserIdAndStatus(userId, SprintStatus.ACTIVE));
+                stats.put("planned", sprintRepository.countByUserIdAndStatus(userId, SprintStatus.PLANNED));
+                stats.put("completed", sprintRepository.countByUserIdAndStatus(userId, SprintStatus.COMPLETED));
+            }
+        }
+        return stats;
     }
 }

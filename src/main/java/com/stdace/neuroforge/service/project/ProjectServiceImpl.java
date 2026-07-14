@@ -21,6 +21,8 @@ import com.stdace.neuroforge.repository.ProjectRepository;
 import com.stdace.neuroforge.repository.TeamRepository;
 import com.stdace.neuroforge.repository.UserRepository;
 import com.stdace.neuroforge.security.CurrentUserUtil;
+import com.stdace.neuroforge.service.audit.AuditLogService;
+import com.stdace.neuroforge.enums.AuditSeverity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -43,6 +45,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final TeamRepository teamRepository;
     private final OrganizationRepository organizationRepository;
     private final ProjectMapper projectMapper;
+    private final AuditLogService auditLogService;
 
     @Override
     public ProjectResponse create(ProjectRequest request) {
@@ -56,7 +59,12 @@ public class ProjectServiceImpl implements ProjectService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + orgId));
         project.setOrganization(org);
-        return projectMapper.toResponse(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+ 
+        auditLogService.log("Project Created", "Project", saved.getId(), AuditSeverity.INFO,
+                "Created project: " + saved.getName() + " (Code: " + saved.getCode() + ")");
+ 
+        return projectMapper.toResponse(saved);
     }
 
     @Override
@@ -124,7 +132,12 @@ public class ProjectServiceImpl implements ProjectService {
         Set<Team> teams = getActiveTeams(request.getTeamIds());
         validateDateRange(request.getStartDate(), request.getEndDate());
         projectMapper.updateEntity(project, request, manager, teams);
-        return projectMapper.toResponse(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+ 
+        auditLogService.log("Project Updated", "Project", saved.getId(), AuditSeverity.INFO,
+                "Updated project: " + saved.getName());
+ 
+        return projectMapper.toResponse(saved);
     }
 
     @Override
@@ -133,6 +146,9 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + id));
         project.setStatus(ProjectStatus.CANCELLED);
         projectRepository.save(project);
+ 
+        auditLogService.log("Project Deleted/Cancelled", "Project", id, AuditSeverity.WARNING,
+                "Project status set to CANCELLED for: " + project.getName());
     }
 
     private void validateCodeUnique(String code, UUID currentId) {

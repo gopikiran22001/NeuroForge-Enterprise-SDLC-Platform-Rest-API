@@ -16,6 +16,8 @@ import com.stdace.neuroforge.models.User;
 import com.stdace.neuroforge.repository.OrganizationRepository;
 import com.stdace.neuroforge.repository.UserRepository;
 import com.stdace.neuroforge.security.CurrentUserUtil;
+import com.stdace.neuroforge.service.audit.AuditLogService;
+import com.stdace.neuroforge.enums.AuditSeverity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ public class OrganizationServiceImpl implements OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationMapper organizationMapper;
+    private final AuditLogService auditLogService;
 
     @Override
     public OrganizationResponse create(OrganizationRequest request) {
@@ -51,14 +54,17 @@ public class OrganizationServiceImpl implements OrganizationService {
 
         Organization org = organizationMapper.toEntity(request, owner);
         org.setStatus(OrganizationStatus.SUSPENDED);
-        organizationRepository.save(org);
+        Organization saved = organizationRepository.save(org);
 
         // Promote owner to ORG_ADMIN and link to this organization
         owner.setRole(UserRole.ORG_ADMIN);
-        owner.setOrganization(org);
+        owner.setOrganization(saved);
         userRepository.save(owner);
 
-        return organizationMapper.toResponse(org);
+        auditLogService.log("Organization Registered", "Organization", saved.getId(), AuditSeverity.INFO,
+                "Registered new organization: " + saved.getName() + " (Owner ID: " + owner.getId() + ")");
+
+        return organizationMapper.toResponse(saved);
     }
 
     @Override
@@ -120,7 +126,12 @@ public class OrganizationServiceImpl implements OrganizationService {
         }
 
         organizationMapper.updateEntity(org, request, owner);
-        return organizationMapper.toResponse(organizationRepository.save(org));
+        Organization saved = organizationRepository.save(org);
+
+        auditLogService.log("Organization Updated", "Organization", saved.getId(), AuditSeverity.INFO,
+                "Updated organization: " + saved.getName());
+
+        return organizationMapper.toResponse(saved);
     }
 
     @Override
@@ -129,6 +140,9 @@ public class OrganizationServiceImpl implements OrganizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + id));
         org.setStatus(OrganizationStatus.DELETED);
         organizationRepository.save(org);
+
+        auditLogService.log("Organization Deleted", "Organization", id, AuditSeverity.WARNING,
+                "Deleted organization: " + org.getName());
     }
 
     @Override
@@ -143,16 +157,19 @@ public class OrganizationServiceImpl implements OrganizationService {
 
         // Set organization status to ACTIVE
         org.setStatus(OrganizationStatus.ACTIVE);
-        organizationRepository.save(org);
+        Organization saved = organizationRepository.save(org);
 
         // Set owner user status to ACTIVE
-        if (org.getOwner() != null) {
-            User owner = org.getOwner();
+        if (saved.getOwner() != null) {
+            User owner = saved.getOwner();
             owner.setStatus(com.stdace.neuroforge.enums.UserStatus.ACTIVE);
             userRepository.save(owner);
         }
 
-        return organizationMapper.toResponse(org);
+        auditLogService.log("Organization Approved", "Organization", saved.getId(), AuditSeverity.INFO,
+                "Approved organization: " + saved.getName());
+
+        return organizationMapper.toResponse(saved);
     }
 
     @Override
@@ -164,6 +181,17 @@ public class OrganizationServiceImpl implements OrganizationService {
         return organizationRepository.findByStatus(OrganizationStatus.ACTIVE, pageable)
                 .map(organizationMapper::toResponse)
                 .getContent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getStats() {
+        java.util.Map<String, Long> stats = new java.util.HashMap<>();
+        stats.put("total", organizationRepository.count());
+        stats.put("active", organizationRepository.countByStatus(OrganizationStatus.ACTIVE));
+        stats.put("pendingApproval", organizationRepository.countByStatus(OrganizationStatus.PENDING_APPROVAL));
+        stats.put("suspended", organizationRepository.countByStatus(OrganizationStatus.SUSPENDED));
+        return stats;
     }
 
     /**

@@ -131,4 +131,113 @@ public interface MilestoneRepository extends JpaRepository<Milestone, UUID> {
             Pageable pageable
     );
 
+    long countByStatus(MilestoneStatus status);
+
+    long countByProjectId(UUID projectId);
+
+    long countByProjectIdAndStatus(UUID projectId, MilestoneStatus status);
+
+    @Query("SELECT COUNT(m) FROM Milestone m WHERE m.status != 'COMPLETED' AND m.dueDate < :now")
+    long countOverdue(@Param("now") java.time.Instant now);
+
+    @Query("SELECT COUNT(m) FROM Milestone m WHERE m.project.id = :projectId AND m.status != 'COMPLETED' AND m.dueDate < :now")
+    long countOverdueByProjectId(@Param("projectId") UUID projectId, @Param("now") java.time.Instant now);
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE p.projectManager.id = :userId
+       OR t.teamLeader.id = :userId
+       OR member.id = :userId
+""")
+    long countByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR member.id = :userId
+    )
+    AND m.status = :status
+""")
+    long countByUserIdAndStatus(
+            @Param("userId") UUID userId,
+            @Param("status") MilestoneStatus status
+    );
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR member.id = :userId
+    )
+    AND m.status != 'COMPLETED'
+    AND m.dueDate < :now
+""")
+    long countOverdueByUserId(@Param("userId") UUID userId, @Param("now") java.time.Instant now);
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE p.id = :projectId
+      AND (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR member.id = :userId
+      )
+""")
+    long countByProjectIdAndUserId(@Param("projectId") UUID projectId, @Param("userId") UUID userId);
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE p.id = :projectId
+      AND (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR member.id = :userId
+      )
+      AND m.status = :status
+""")
+    long countByProjectIdAndUserIdAndStatus(
+            @Param("projectId") UUID projectId,
+            @Param("userId") UUID userId,
+            @Param("status") MilestoneStatus status
+    );
+
+    @Query("""
+    SELECT COUNT(DISTINCT m)
+    FROM Milestone m
+    JOIN m.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members member
+    WHERE p.id = :projectId
+      AND (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR member.id = :userId
+      )
+      AND m.status != 'COMPLETED'
+      AND m.dueDate < :now
+""")
+    long countOverdueByProjectIdAndUserId(@Param("projectId") UUID projectId, @Param("userId") UUID userId, @Param("now") java.time.Instant now);
 }

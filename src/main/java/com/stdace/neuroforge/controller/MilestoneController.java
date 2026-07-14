@@ -42,6 +42,11 @@ public class MilestoneController {
         return ResponseEntity.ok(ApiResponse.success("Milestone retrieved successfully", milestoneService.getById(id)));
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats(@RequestParam(required = false) UUID projectId) {
+        return ResponseEntity.ok(ApiResponse.success("Milestone stats retrieved successfully", milestoneService.getStats(projectId)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<MilestoneResponse>>> search(
             @RequestParam(required = false) UUID projectId,

@@ -33,5 +33,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> findByOrganizationIdAndStatus(UUID organizationId, UserStatus status, Pageable pageable);
 
     Page<User> findByOrganizationIdAndRoleAndStatus(UUID organizationId, UserRole role, UserStatus status, Pageable pageable);
+
+    long countByStatus(UserStatus status);
+
+    long countByStatusIn(java.util.List<UserStatus> statuses);
+
+    long countByOrganizationId(UUID organizationId);
+
+    long countByOrganizationIdAndStatus(UUID organizationId, UserStatus status);
+
+    long countByOrganizationIdAndStatusIn(UUID organizationId, java.util.List<UserStatus> statuses);
 }
 

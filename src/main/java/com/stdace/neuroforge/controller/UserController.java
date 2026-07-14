@@ -37,6 +37,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("User created successfully", userService.create(request)));
     }
 
+    @GetMapping("/stats")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats() {
+        return ResponseEntity.ok(ApiResponse.success("User stats retrieved successfully", userService.getStats()));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_MANAGER')")
     public ResponseEntity<ApiResponse<?>> search(

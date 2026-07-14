@@ -14,6 +14,8 @@ import com.stdace.neuroforge.mapper.UserMapper;
 import com.stdace.neuroforge.repository.OrganizationRepository;
 import com.stdace.neuroforge.repository.UserRepository;
 import com.stdace.neuroforge.security.CurrentUserUtil;
+import com.stdace.neuroforge.service.audit.AuditLogService;
+import com.stdace.neuroforge.enums.AuditSeverity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
     private final UserMapper userMapper;
+    private final AuditLogService auditLogService;
 
     @Override
     public UserResponse create(UserRequest request) {
@@ -49,8 +52,12 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + orgId));
             user.setOrganization(org);
         }
-        userRepository.save(user);
-        return userMapper.toResponse(user);
+        User saved = userRepository.save(user);
+ 
+        auditLogService.log("User Created", "User", saved.getId(), AuditSeverity.INFO,
+                "Created user account for: " + saved.getEmail() + " (Role: " + saved.getRole() + ")");
+ 
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -98,7 +105,12 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateResourceException("Email already exists");
         }
         userMapper.updateEntity(user, request, new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder());
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+ 
+        auditLogService.log("User Updated", "User", saved.getId(), AuditSeverity.INFO,
+                "Updated user account profile for: " + saved.getEmail());
+ 
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -107,6 +119,9 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
         user.setStatus(UserStatus.DELETED);
         userRepository.save(user);
+ 
+        auditLogService.log("User Account Deleted", "User", id, AuditSeverity.WARNING,
+                "Deactivated/Deleted user account: " + user.getEmail());
     }
 
     @Override
@@ -130,7 +145,12 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setStatus(UserStatus.ACTIVE);
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+ 
+        auditLogService.log("User Approved", "User", saved.getId(), AuditSeverity.INFO,
+                "Approved pending user account: " + saved.getEmail());
+ 
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -152,5 +172,25 @@ public class UserServiceImpl implements UserService {
         }
 
         throw new com.stdace.neuroforge.exception.ForbiddenException("Access denied");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getStats() {
+        java.util.Map<String, Long> stats = new java.util.HashMap<>();
+        UserRole callerRole = CurrentUserUtil.getCurrentUserRole();
+        if (callerRole == UserRole.ORG_ADMIN) {
+            UUID orgId = CurrentUserUtil.getCurrentUserOrganizationId();
+            stats.put("total", userRepository.countByOrganizationId(orgId));
+            stats.put("active", userRepository.countByOrganizationIdAndStatus(orgId, UserStatus.ACTIVE));
+            stats.put("pending", userRepository.countByOrganizationIdAndStatus(orgId, UserStatus.PENDING_APPROVAL));
+            stats.put("suspended", userRepository.countByOrganizationIdAndStatusIn(orgId, java.util.List.of(UserStatus.INACTIVE, UserStatus.DELETED)));
+        } else {
+            stats.put("total", userRepository.count());
+            stats.put("active", userRepository.countByStatus(UserStatus.ACTIVE));
+            stats.put("pending", userRepository.countByStatus(UserStatus.PENDING_APPROVAL));
+            stats.put("suspended", userRepository.countByStatusIn(java.util.List.of(UserStatus.INACTIVE, UserStatus.DELETED)));
+        }
+        return stats;
     }
 }

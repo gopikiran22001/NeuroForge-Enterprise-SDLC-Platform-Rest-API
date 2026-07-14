@@ -25,4 +25,6 @@ public interface OrganizationRepository extends JpaRepository<Organization, UUID
     Page<Organization> findByType(OrganizationType type, Pageable pageable);
 
     Page<Organization> findByTypeAndStatus(OrganizationType type, OrganizationStatus status, Pageable pageable);
+
+    long countByStatus(OrganizationStatus status);
 }

@@ -31,4 +31,6 @@ public interface SprintService {
     void managerCheck(UUID currentUserId, @Valid SprintRequest request);
 
     void managerCheck(UUID currentUserId, UUID id);
+
+    java.util.Map<String, Long> getStats(UUID projectId);
 }

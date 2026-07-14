@@ -11,6 +11,7 @@ import com.stdace.neuroforge.exception.ResourceNotFoundException;
 import com.stdace.neuroforge.mapper.MilestoneMapper;
 import com.stdace.neuroforge.repository.MilestoneRepository;
 import com.stdace.neuroforge.repository.ProjectRepository;
+import com.stdace.neuroforge.security.CurrentUserUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -174,4 +175,38 @@ public class MilestoneServiceImpl implements MilestoneService {
         return milestoneRepository.isProjectManagerOrTeamLeadForMilestoneProject(milestoneId, userId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getStats(UUID projectId) {
+        java.util.Map<String, Long> stats = new java.util.HashMap<>();
+        com.stdace.neuroforge.enums.UserRole callerRole = CurrentUserUtil.getCurrentUserRole();
+        java.time.Instant now = java.time.Instant.now();
+        if (callerRole == com.stdace.neuroforge.enums.UserRole.SUPER_ADMIN || callerRole == com.stdace.neuroforge.enums.UserRole.ORG_ADMIN) {
+            if (projectId != null) {
+                stats.put("total", milestoneRepository.countByProjectId(projectId));
+                stats.put("inProgress", milestoneRepository.countByProjectIdAndStatus(projectId, MilestoneStatus.IN_PROGRESS));
+                stats.put("completed", milestoneRepository.countByProjectIdAndStatus(projectId, MilestoneStatus.COMPLETED));
+                stats.put("overdue", milestoneRepository.countOverdueByProjectId(projectId, now));
+            } else {
+                stats.put("total", milestoneRepository.count());
+                stats.put("inProgress", milestoneRepository.countByStatus(MilestoneStatus.IN_PROGRESS));
+                stats.put("completed", milestoneRepository.countByStatus(MilestoneStatus.COMPLETED));
+                stats.put("overdue", milestoneRepository.countOverdue(now));
+            }
+        } else {
+            UUID userId = CurrentUserUtil.getCurrentUserId();
+            if (projectId != null) {
+                stats.put("total", milestoneRepository.countByProjectIdAndUserId(projectId, userId));
+                stats.put("inProgress", milestoneRepository.countByProjectIdAndUserIdAndStatus(projectId, userId, MilestoneStatus.IN_PROGRESS));
+                stats.put("completed", milestoneRepository.countByProjectIdAndUserIdAndStatus(projectId, userId, MilestoneStatus.COMPLETED));
+                stats.put("overdue", milestoneRepository.countOverdueByProjectIdAndUserId(projectId, userId, now));
+            } else {
+                stats.put("total", milestoneRepository.countByUserId(userId));
+                stats.put("inProgress", milestoneRepository.countByUserIdAndStatus(userId, MilestoneStatus.IN_PROGRESS));
+                stats.put("completed", milestoneRepository.countByUserIdAndStatus(userId, MilestoneStatus.COMPLETED));
+                stats.put("overdue", milestoneRepository.countOverdueByUserId(userId, now));
+            }
+        }
+        return stats;
+    }
 }

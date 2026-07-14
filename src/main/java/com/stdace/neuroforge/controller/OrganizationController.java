@@ -44,6 +44,13 @@ public class OrganizationController {
                 organizationService.getBySlug(slug)));
     }
 
+    @GetMapping("/stats")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats() {
+        return ResponseEntity.ok(ApiResponse.success("Organization stats retrieved successfully",
+                organizationService.getStats()));
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<OrganizationResponse>>> search(

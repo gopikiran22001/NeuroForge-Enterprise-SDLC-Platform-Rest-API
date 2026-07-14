@@ -33,4 +33,6 @@ public interface MilestoneService {
     boolean isAllowed(UUID id, UUID currentUserId);
 
     MilestoneResponse getById(UUID currentUserId, UUID id);
+
+    java.util.Map<String, Long> getStats(UUID projectId);
 }

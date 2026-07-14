@@ -117,4 +117,77 @@ public interface SprintRepository extends JpaRepository<Sprint, UUID> {
             Pageable pageable
     );
 
+    long countByStatus(SprintStatus status);
+    
+    long countByProjectId(UUID projectId);
+    
+    long countByProjectIdAndStatus(UUID projectId, SprintStatus status);
+
+    @Query("""
+    SELECT COUNT(DISTINCT s)
+    FROM Sprint s
+    JOIN s.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members m
+    WHERE p.projectManager.id = :userId
+       OR t.teamLeader.id = :userId
+       OR m.id = :userId
+""")
+    long countByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT COUNT(DISTINCT s)
+    FROM Sprint s
+    JOIN s.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members m
+    WHERE (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR m.id = :userId
+    )
+    AND s.status = :status
+""")
+    long countByUserIdAndStatus(
+            @Param("userId") UUID userId,
+            @Param("status") SprintStatus status
+    );
+
+    @Query("""
+    SELECT COUNT(DISTINCT s)
+    FROM Sprint s
+    JOIN s.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members m
+    WHERE p.id = :projectId
+      AND (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR m.id = :userId
+      )
+""")
+    long countByProjectId(
+            @Param("userId") UUID userId,
+            @Param("projectId") UUID projectId
+    );
+
+    @Query("""
+    SELECT COUNT(DISTINCT s)
+    FROM Sprint s
+    JOIN s.project p
+    LEFT JOIN p.teams t
+    LEFT JOIN t.members m
+    WHERE p.id = :projectId
+      AND s.status = :status
+      AND (
+            p.projectManager.id = :userId
+         OR t.teamLeader.id = :userId
+         OR m.id = :userId
+      )
+""")
+    long countByProjectIdAndStatus(
+            @Param("userId") UUID userId,
+            @Param("projectId") UUID projectId,
+            @Param("status") SprintStatus status
+    );
 }

@@ -23,4 +23,6 @@ public interface UserService {
     UserResponse approve(UUID id);
 
     PageResponse<UserResponse> getPending(int page, int size);
+
+    java.util.Map<String, Long> getStats();
 }
