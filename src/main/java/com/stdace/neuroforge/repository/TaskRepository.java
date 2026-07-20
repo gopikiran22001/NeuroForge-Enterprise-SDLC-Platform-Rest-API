@@ -24,7 +24,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     WHERE t.project.id = :projectId
       AND (:sprintId IS NULL OR t.sprint.id = :sprintId)
       AND (:status IS NULL OR t.status = :status)
-      AND (:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(t.code) LIKE LOWER(CONCAT('%', :search, '%')))
+      AND (:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) OR LOWER(t.code) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
     """)
     Page<Task> searchTasks(
             @Param("projectId") UUID projectId,

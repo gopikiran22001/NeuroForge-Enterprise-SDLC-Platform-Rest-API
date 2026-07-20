@@ -15,10 +15,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
     @Query("""
     SELECT a FROM AuditLog a
     WHERE (:severity IS NULL OR a.severity = :severity)
-      AND (:search IS NULL OR LOWER(a.actorEmail) LIKE LOWER(CONCAT('%', :search, '%')) 
-           OR LOWER(a.action) LIKE LOWER(CONCAT('%', :search, '%')) 
-           OR LOWER(a.entityType) LIKE LOWER(CONCAT('%', :search, '%')) 
-           OR LOWER(a.actorName) LIKE LOWER(CONCAT('%', :search, '%')))
+      AND (:search IS NULL OR LOWER(a.actorEmail) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) 
+           OR LOWER(a.action) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) 
+           OR LOWER(a.entityType) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) 
+           OR LOWER(a.actorName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
     """)
     Page<AuditLog> searchLogs(
             @Param("severity") AuditSeverity severity,
